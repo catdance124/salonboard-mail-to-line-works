@@ -87,26 +87,26 @@ function formatReservation(body) {
   const amount        = extract(/予約時合計金額\s*([0-9,]+円)/);
 
   const menuMatch = body.match(/■メニュー\s*\n([\s\S]*?)■ご利用クーポン/);
-  const menuLines = menuMatch
-    ? menuMatch[1].trim().split("\n").map(l => l.trim()).filter(l => l)
-    : ["不明"];
-  const durationLine = menuLines.find(l => l.includes("所要時間")) || "";
-  const durationText = (durationLine.match(/（(.+?)）/) || [])[1] || "";
-  const menus = menuLines.filter(l => !l.includes("所要時間") && !l.startsWith("パーツ")).join(" / ");
+  const menus = menuMatch
+    ? menuMatch[1].split("\n").map(l => l.trim()).filter(l => l).join("／")
+    : "不明";
 
-  // [全員]などの角括弧がある場合とない場合の両方に対応
-  const couponMatch = body.match(/■ご利用クーポン\s*\n(?:\s*\[.+?\]\s*\n)?\s*(.+)/);
-  const coupon = couponMatch ? couponMatch[1].trim().substring(0, 20) + "…" : "なし";
+  const couponMatch = body.match(/■ご利用クーポン\s*\n([\s\S]*?)(?:■合計金額|PC版SALON)/);
+  const couponLines = couponMatch
+    ? couponMatch[1].split("\n").map(l => l.trim()).filter(l => l && !l.match(/^\[.+\]$/))
+    : [];
+  const coupon = couponLines.length > 0 ? couponLines.join("／") : "なし";
 
   return (
     `🆕 予約が入りました\n` +
-    `─────────\n` +
+    `───────\n` +
     `📅 ${datetime}\n` +
     `👤 ${name}\n` +
-    `💅 ${menus}${durationText ? `（${durationText}）` : ""}\n` +
-    `👩‍🎨 指名：${staff}\n` +
-    `💰 ${amount}\n` +
+    `\n` +
+    `💅 ${menus}\n` +
     `🎫 ${coupon}\n` +
+    `💰 ${amount}\n` +
+    `👩‍🎨 指名：${staff}\n` +
     `📌 予約番号：${reservationNo}`
   );
 }
@@ -126,19 +126,17 @@ function formatCancellation(body) {
   const staff         = extract(/■指名スタッフ\s*\n\s*(.+)/);
 
   const menuMatch = body.match(/■メニュー\s*\n([\s\S]*?)(?:■ご利用クーポン|PC版SALON)/);
-  const menuLines = menuMatch
-    ? menuMatch[1].trim().split("\n").map(l => l.trim()).filter(l => l)
-    : ["不明"];
-  const durationLine = menuLines.find(l => l.includes("所要時間")) || "";
-  const durationText = (durationLine.match(/（(.+?)）/) || [])[1] || "";
-  const menus = menuLines.filter(l => !l.includes("所要時間")).join(" / ");
+  const menus = menuMatch
+    ? menuMatch[1].split("\n").map(l => l.trim()).filter(l => l).join("／")
+    : "不明";
 
   return (
     `❌ キャンセルがありました\n` +
-    `─────────\n` +
+    `───────\n` +
     `📅 ${datetime}\n` +
     `👤 ${name}\n` +
-    `💅 ${menus}${durationText ? `（${durationText}）` : ""}\n` +
+    `\n` +
+    `💅 ${menus}\n` +
     `👩‍🎨 指名：${staff}\n` +
     `📌 予約番号：${reservationNo}`
   );
@@ -242,7 +240,7 @@ const TEST_RESERVATION = `■予約番号
 　指名なし
 ■メニュー
 　ジェル
-　(内)フィルインオフ＋土台作り
+　オフメニュー
 　（所要時間目安：1時間30分）
 ■ご利用クーポン
 　[全員]
@@ -262,7 +260,7 @@ const TEST_CANCELLATION = `■予約番号
 ■指名スタッフ
 　テストスタッフ
 ■メニュー
-　ジェル＋アート＋(内)フィルインオフ＋土台作り
+　ジェル
 　（所要時間目安：2時間15分）
 ■ご利用クーポン
 　【テスト】ダミークーポン`;
@@ -278,11 +276,11 @@ const TEST_RESERVATION_NO_BRACKET = `■予約番号
 　指名なし
 ■メニュー
 　ジェル
-　新規オフ無料
-　【３本】長さだし・チップ
+　オフメニュー
+　オプションメニュー
 　（所要時間目安：3時間10分）
 ■ご利用クーポン
-　【期間限定】SNSのお気に入りを再現♪持ち込みデザイン ¥13,500→¥10,500
+　【テスト】ダミークーポン
 ■合計金額
 　予約時合計金額　12,150円
 　今回の利用ギフト券　利用なし
