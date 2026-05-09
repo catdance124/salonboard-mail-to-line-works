@@ -94,8 +94,17 @@ function formatReservation(body) {
   const durationText = (durationLine.match(/（(.+?)）/) || [])[1] || "";
   const menus = menuLines.filter(l => !l.includes("所要時間") && !l.startsWith("パーツ")).join(" / ");
 
-  const couponMatch = body.match(/■ご利用クーポン\s*\n\s*\[.+?\]\s*\n\s*(.+)/);
-  const coupon = couponMatch ? couponMatch[1].trim().substring(0, 20) + "…" : "なし";
+  // クーポン抽出: [カテゴリ]がある場合とない場合の両方に対応
+  const couponSection = body.match(/■ご利用クーポン\s*\n([\s\S]*?)(?:■合計金額|$)/);
+  let coupon = "なし";
+  if (couponSection) {
+    const lines = couponSection[1].trim().split("\n").map(l => l.trim()).filter(l => l);
+    // [カテゴリ]行をスキップしてクーポン名を取得
+    const couponLine = lines.find(l => !l.match(/^\[.+?\]$/)) || "";
+    if (couponLine) {
+      coupon = couponLine.substring(0, 25) + (couponLine.length > 25 ? "…" : "");
+    }
+  }
 
   return (
     `🆕 予約が入りました\n` +
@@ -230,48 +239,73 @@ function getOrCreateLabel(labelName) {
 // ============================================================
 // テスト：フォーマット確認（APIは呼ばない）
 // ============================================================
-// テストデータ
+// テストデータ（ダミー）
 const TEST_RESERVATION = `■予約番号
-　BE00000001
+　BE12345678
 ■氏名
-　山田 太郎（ヤマダ タロウ）
+　テスト 太郎（テスト タロウ）
 ■来店日時
-　2026年05月22日（金）12:30
+　2026年06月15日（月）14:00
 ■指名スタッフ
 　指名なし
 ■メニュー
-　ジェル
-　(内)フィルインオフ＋土台作り
-　（所要時間目安：1時間30分）
+　ダミーメニューA
+　ダミーメニューB
+　（所要時間目安：2時間00分）
 ■ご利用クーポン
-　[全員]
-　【テスト】ダミークーポン
+　[新規]
+　【ダミー】初回限定クーポン ¥10,000→¥8,000
 ■合計金額
-　予約時合計金額　6,800円
+　予約時合計金額　8,000円
 　今回の利用ギフト券　利用なし
 　今回の利用ポイント　利用なし
-　お支払い予定金額　6,800円`;
+　お支払い予定金額　8,000円`;
+
+// カテゴリなしクーポンのテスト
+const TEST_RESERVATION_NO_CATEGORY = `■予約番号
+　BE98765432
+■氏名
+　サンプル 花子（サンプル ハナコ）
+■来店日時
+　2026年06月20日（土）10:30
+■指名スタッフ
+　ダミースタッフ
+■メニュー
+　ダミーメニューC
+　ダミーメニューD
+　ダミーオプション
+　（所要時間目安：3時間00分）
+■ご利用クーポン
+　【期間限定】特別割引クーポン ¥15,000→¥12,000
+　　詳細説明テキストがここに入ります
+■合計金額
+　予約時合計金額　12,000円
+　今回の利用ギフト券　利用なし
+　今回の利用ポイント　利用なし
+　お支払い予定金額　12,000円`;
 
 const TEST_CANCELLATION = `■予約番号
-　BE00000002
+　BE11112222
 ■氏名
-　鈴木 花子（スズキ ハナコ）
+　キャンセル 次郎（キャンセル ジロウ）
 ■来店日時
-　2026年05月13日（水）13:30
+　2026年06月25日（木）16:00
 ■指名スタッフ
-　テストスタッフ
+　ダミースタッフ
 ■メニュー
-　ジェル＋アート＋(内)フィルインオフ＋土台作り
-　（所要時間目安：2時間15分）
+　ダミーメニューE＋ダミーオプションF
+　（所要時間目安：1時間30分）
 ■ご利用クーポン
-　【テスト】ダミークーポン`;
+　【ダミー】キャンセルテスト用クーポン`;
 
 // ============================================================
 // テスト：フォーマット確認（ログのみ・API呼ばない）
 // ============================================================
 function testFormat() {
-  Logger.log("=== 予約連絡 ===");
+  Logger.log("=== 予約連絡（カテゴリありクーポン） ===");
   Logger.log(formatReservation(TEST_RESERVATION));
+  Logger.log("=== 予約連絡（カテゴリなしクーポン） ===");
+  Logger.log(formatReservation(TEST_RESERVATION_NO_CATEGORY));
   Logger.log("=== キャンセル連絡 ===");
   Logger.log(formatCancellation(TEST_CANCELLATION));
 }
@@ -287,10 +321,14 @@ function testSend() {
   }
 
   const resText = formatReservation(TEST_RESERVATION);
+  const resTextNoCategory = formatReservation(TEST_RESERVATION_NO_CATEGORY);
   const canText = formatCancellation(TEST_CANCELLATION);
 
-  Logger.log("=== 予約連絡 送信 ===");
+  Logger.log("=== 予約連絡（カテゴリあり）送信 ===");
   Logger.log(sendToLineWorks(token, resText) ? "成功" : "失敗");
+
+  Logger.log("=== 予約連絡（カテゴリなし）送信 ===");
+  Logger.log(sendToLineWorks(token, resTextNoCategory) ? "成功" : "失敗");
 
   Logger.log("=== キャンセル連絡 送信 ===");
   Logger.log(sendToLineWorks(token, canText) ? "成功" : "失敗");
