@@ -94,7 +94,8 @@ function formatReservation(body) {
   const durationText = (durationLine.match(/（(.+?)）/) || [])[1] || "";
   const menus = menuLines.filter(l => !l.includes("所要時間") && !l.startsWith("パーツ")).join(" / ");
 
-  const couponMatch = body.match(/■ご利用クーポン\s*\n\s*\[.+?\]\s*\n\s*(.+)/);
+  // [全員]などの角括弧がある場合とない場合の両方に対応
+  const couponMatch = body.match(/■ご利用クーポン\s*\n(?:\s*\[.+?\]\s*\n)?\s*(.+)/);
   const coupon = couponMatch ? couponMatch[1].trim().substring(0, 20) + "…" : "なし";
 
   return (
@@ -266,6 +267,28 @@ const TEST_CANCELLATION = `■予約番号
 ■ご利用クーポン
 　【テスト】ダミークーポン`;
 
+// [全員]なしの形式のテスト
+const TEST_RESERVATION_NO_BRACKET = `■予約番号
+　BE92221561
+■氏名
+　ダミー（ダミー）
+■来店日時
+　2026年05月10日（日）10:30
+■指名スタッフ
+　指名なし
+■メニュー
+　ジェル
+　新規オフ無料
+　【３本】長さだし・チップ
+　（所要時間目安：3時間10分）
+■ご利用クーポン
+　【期間限定】SNSのお気に入りを再現♪持ち込みデザイン ¥13,500→¥10,500
+■合計金額
+　予約時合計金額　12,150円
+　今回の利用ギフト券　利用なし
+　今回の利用ポイント　利用なし
+　お支払い予定金額　12,150円`;
+
 // ============================================================
 // テスト：フォーマット確認（ログのみ・API呼ばない）
 // ============================================================
@@ -274,6 +297,8 @@ function testFormat() {
   Logger.log(formatReservation(TEST_RESERVATION));
   Logger.log("=== キャンセル連絡 ===");
   Logger.log(formatCancellation(TEST_CANCELLATION));
+  Logger.log("=== 予約連絡（[全員]なし形式） ===");
+  Logger.log(formatReservation(TEST_RESERVATION_NO_BRACKET));
 }
 
 // ============================================================
