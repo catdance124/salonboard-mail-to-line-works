@@ -80,7 +80,6 @@ function formatReservation(body) {
     return m ? m[1].trim() : "不明";
   };
 
-  const reservationNo = extract(/■予約番号\s*\n\s*(.+)/);
   const name          = extract(/■氏名\s*\n\s*(.+)/);
   const datetime      = extract(/■来店日時\s*\n\s*(.+)/);
   const staff         = extract(/■指名スタッフ\s*\n\s*(.+)/);
@@ -97,6 +96,9 @@ function formatReservation(body) {
     : [];
   const coupon = couponLines.length > 0 ? couponLines.join("／") : "なし";
 
+  const answerMatch = body.match(/　回答[：:]\s*([\s\S]+?)(?=\n\s*\n|PC版SALON)/);
+  const answer = answerMatch ? answerMatch[1].trim() : "なし";
+
   return (
     `🆕 予約が入りました\n` +
     `───────\n` +
@@ -107,7 +109,7 @@ function formatReservation(body) {
     `🎫 ${coupon}\n` +
     `💰 ${amount}\n` +
     `👩‍🎨 指名：${staff}\n` +
-    `📌 予約番号：${reservationNo}`
+    `💬 お客様回答：${answer}`
   );
 }
 
@@ -120,7 +122,6 @@ function formatCancellation(body) {
     return m ? m[1].trim() : "不明";
   };
 
-  const reservationNo = extract(/■予約番号\s*\n\s*(.+)/);
   const name          = extract(/■氏名\s*\n\s*(.+)/);
   const datetime      = extract(/■来店日時\s*\n\s*(.+)/);
   const staff         = extract(/■指名スタッフ\s*\n\s*(.+)/);
@@ -137,8 +138,7 @@ function formatCancellation(body) {
     `👤 ${name}\n` +
     `\n` +
     `💅 ${menus}\n` +
-    `👩‍🎨 指名：${staff}\n` +
-    `📌 予約番号：${reservationNo}`
+    `👩‍🎨 指名：${staff}`
   );
 }
 
@@ -249,7 +249,12 @@ const TEST_RESERVATION = `■予約番号
 　予約時合計金額　6,800円
 　今回の利用ギフト券　利用なし
 　今回の利用ポイント　利用なし
-　お支払い予定金額　6,800円`;
+　お支払い予定金額　6,800円
+■サロンからお客様への質問
+　質問：ご要望があればお書きください
+　回答：当日相談したいです。
+
+PC版SALON BOARD`;
 
 const TEST_CANCELLATION = `■予約番号
 　BE00000002
