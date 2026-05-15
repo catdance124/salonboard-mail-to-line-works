@@ -31,7 +31,7 @@ const CONFIG = (() => {
 // ============================================================
 function forwardGmailToLineWorks() {
   const label = getOrCreateLabel(CONFIG.PROCESSED_LABEL);
-  const query = `from:${CONFIG.SENDER_EMAIL} -label:${CONFIG.PROCESSED_LABEL}`;
+  const query = `from:${CONFIG.SENDER_EMAIL} newer_than:7d`;
   const threads = GmailApp.search(query);
 
   if (threads.length === 0) {
@@ -45,10 +45,18 @@ function forwardGmailToLineWorks() {
     return;
   }
 
+  const processedIds = getProcessedMessageIds();
+
   threads.forEach((thread) => {
     thread.getMessages().forEach((message) => {
+      const messageId = message.getId();
+
+      if (processedIds.has(messageId)) {
+        return;
+      }
+
       const subject = message.getSubject();
-      const body = message.getPlainBody();
+      const body = message.getPlainBody() || "";
 
       let text;
       if (subject.includes("予約連絡")) {
@@ -57,11 +65,13 @@ function forwardGmailToLineWorks() {
         text = formatCancellation(body);
       } else {
         Logger.log(`未対応の件名のためスキップ: ${subject}`);
+        processedIds.add(messageId);
         return;
       }
 
       const success = sendToLineWorks(token, text);
       if (success) {
+        processedIds.add(messageId);
         thread.addLabel(label);
         Logger.log(`転送成功: ${subject}`);
       } else {
@@ -69,6 +79,8 @@ function forwardGmailToLineWorks() {
       }
     });
   });
+
+  saveProcessedMessageIds(processedIds);
 }
 
 // ============================================================
@@ -224,6 +236,19 @@ function base64UrlEncode(str) {
 
 function getOrCreateLabel(labelName) {
   return GmailApp.getUserLabelByName(labelName) || GmailApp.createLabel(labelName);
+}
+
+function getProcessedMessageIds() {
+  const raw = PropertiesService.getScriptProperties().getProperty("PROCESSED_MESSAGE_IDS");
+  return new Set(raw ? JSON.parse(raw) : []);
+}
+
+function saveProcessedMessageIds(idsSet) {
+  const ids = Array.from(idsSet).slice(-150);
+  PropertiesService.getScriptProperties().setProperty(
+    "PROCESSED_MESSAGE_IDS",
+    JSON.stringify(ids)
+  );
 }
 
 // ============================================================
